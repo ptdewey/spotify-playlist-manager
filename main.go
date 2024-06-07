@@ -55,12 +55,20 @@ func main() {
     fmt.Println("You are logged in as:", user.ID)
 
     // get user playlists
-    playlists, err := playlist.FetchUserPlaylistsList(client, ctx)
+    playlists_page, err := playlist.FetchUserPlaylistsList(client, ctx)
     if err != nil {
         fmt.Println("Error fetching json playlist:", err)
         return
     }
-    fmt.Println(playlists)
+    // fmt.Println(playlists)
+    playlists, err := playlist.ConvertPlaylistsToSpotifyPlaylists(client, ctx, playlists_page)
+    if err != nil {
+        fmt.Println("Error converting playlists to type SpotifyPlaylist:", err)
+        return
+    }
+
+    // write playlist data to json
+    playlist.WritePlaylistsToFile(playlists, "patrc_playlists.json")
 }
 
 
