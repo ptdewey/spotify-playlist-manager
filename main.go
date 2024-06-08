@@ -68,7 +68,7 @@ func main() {
     }
 
     // write playlist data to json
-    playlist.WritePlaylistsToFile(playlists, "patrc_playlists.json")
+    playlist.WritePlaylistsToFile(playlists, "user_playlists.json")
 }
 
 
