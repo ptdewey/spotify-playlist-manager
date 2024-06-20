@@ -10,6 +10,26 @@ import (
     "github.com/zmb3/spotify/v2"
 )
 
+
+// TODO: documentation for this and what its for
+type SimplifiedTrack struct {
+    ID spotify.ID `json:"id"`
+    URI spotify.URI `json:"uri"`
+    Name string `json:"name"`
+    Artists []spotify.SimpleArtist `json:"artists"`
+    Album spotify.SimpleAlbum `json:"album"`
+    TrackNumber int `json:"track_number"`
+    Duration int `json:"duration_ms"`
+    Popularity int `json:"popularity"`
+    AddedBy spotify.User `json:"added_by"`
+    AddedAt string `json:"added_at"`
+    Explicit bool `json:"explicit"`
+    // TODO: other fields (there are a lot and might need more structs)
+}
+
+// TODO: artist and album structs to remove unwanted info
+
+
 // caches contents of user playlists to allow for future checking of updates
 func cacheUserPlaylists(client *spotify.Client, ctx context.Context, spp *spotify.SimplePlaylistPage, names []string) error {
     var matches []*SpotifyPlaylist
@@ -62,13 +82,15 @@ func findPlaylistsByName(client *spotify.Client, ctx context.Context, spp *spoti
                 }
 
                 tracks, err := getPlaylistTracks(client, ctx, m)
+                // TODO: edit tracks structure
                 if err != nil {
                     fmt.Println("Error fetching tracks for playlist:", err)
                     return nil, err
                 }
                 m.Tracks = tracks
+
                 matches = append(matches, m)
-                break
+                break // NOTE: this could cause issues with duplicate name playlists (maybe not possible?)
             }
         }
     }
@@ -94,7 +116,6 @@ func ConvertPlaylistsToSpotifyPlaylists(client *spotify.Client, ctx context.Cont
         p.Tracks = tracks
 
         playlists = append(playlists, p)
-        // fmt.Println(p)
     }
     return playlists, nil
 }
@@ -104,15 +125,38 @@ func ConvertPlaylistsToSpotifyPlaylists(client *spotify.Client, ctx context.Cont
 func getPlaylistTracks(client *spotify.Client, ctx context.Context, p *SpotifyPlaylist) (string, error) {
     playlistID := extractPlaylistID(p.URI)
 
-    // Fetch the playlist items using the playlist ID
+    // fetch the playlist items using the playlist ID
     tracks, err := client.GetPlaylistItems(ctx, spotify.ID(playlistID))
     if err != nil {
         fmt.Println("Error getting tracks for playlist:", err)
         return "", err
     }
 
-    // Encode the tracks as JSON
-    t, err := json.Marshal(tracks)
+    // remove unwanted fields from track (i.e. locales)
+    stracks := make([]SimplifiedTrack, len(tracks.Items))
+    for i, item := range tracks.Items {
+        if item.Track.Track == nil {
+            continue
+        }
+        it := item.Track.Track
+        stracks[i] = SimplifiedTrack{
+            ID: it.ID,
+            URI: it.URI,
+            Name: it.Name,
+            Artists: it.Artists,
+            Album: it.Album,
+            TrackNumber: it.TrackNumber,
+            Duration: it.Duration,
+            Popularity: it.Popularity,
+            AddedBy: item.AddedBy,
+            AddedAt: item.AddedAt,
+            Explicit: it.Explicit,
+        }
+    }
+
+    // encode the tracks as JSON
+    // TODO: drop unwanted track fields here
+    t, err := json.Marshal(stracks)
     if err != nil {
         fmt.Println("JSON encoding failed:", err)
         return "", err
