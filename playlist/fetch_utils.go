@@ -10,25 +10,33 @@ import (
     "github.com/zmb3/spotify/v2"
 )
 
-
-// TODO: documentation for this and what its for
 type SimplifiedTrack struct {
     ID spotify.ID `json:"id"`
     URI spotify.URI `json:"uri"`
     Name string `json:"name"`
-    Artists []spotify.SimpleArtist `json:"artists"`
-    Album spotify.SimpleAlbum `json:"album"`
+    Artists []SimplifiedArtist `json:"artists"`
+    Album SimplifiedAlbum `json:"album"`
     TrackNumber int `json:"track_number"`
     Duration int `json:"duration_ms"`
     Popularity int `json:"popularity"`
     AddedBy spotify.User `json:"added_by"`
     AddedAt string `json:"added_at"`
     Explicit bool `json:"explicit"`
-    // TODO: other fields (there are a lot and might need more structs)
 }
 
-// TODO: artist and album structs to remove unwanted info
+type SimplifiedArtist struct {
+    ID spotify.ID `json:"id"`
+    URI spotify.URI `json:"uri"`
+    Name string `json:"name"`
+}
 
+type SimplifiedAlbum struct {
+    ID spotify.ID `json:"id"`
+    URI spotify.URI `json:"uri"`
+    Name string `json:"name"`
+    ReleaseDate string `json:"release_date"`
+    AlbumGroup string `json:"album_group"`
+}
 
 // caches contents of user playlists to allow for future checking of updates
 func cacheUserPlaylists(client *spotify.Client, ctx context.Context, spp *spotify.SimplePlaylistPage, names []string) error {
@@ -76,13 +84,12 @@ func findPlaylistsByName(client *spotify.Client, ctx context.Context, spp *spoti
         for _, name := range names {
             if sp.Name == name {
                 m := &SpotifyPlaylist{
-                    Name:        name,
-                    URI:         sp.URI,
+                    Name: name,
+                    URI: sp.URI,
                     Total_Tracks: sp.Tracks.Total,
                 }
 
                 tracks, err := getPlaylistTracks(client, ctx, m)
-                // TODO: edit tracks structure
                 if err != nil {
                     fmt.Println("Error fetching tracks for playlist:", err)
                     return nil, err
@@ -90,7 +97,7 @@ func findPlaylistsByName(client *spotify.Client, ctx context.Context, spp *spoti
                 m.Tracks = tracks
 
                 matches = append(matches, m)
-                break // NOTE: this could cause issues with duplicate name playlists (maybe not possible?)
+                break // NOTE: this could possibly cause issues with duplicate name playlists (maybe not possible?)
             }
         }
     }
@@ -103,8 +110,8 @@ func ConvertPlaylistsToSpotifyPlaylists(client *spotify.Client, ctx context.Cont
     var playlists []*SpotifyPlaylist
     for _, sp := range spp.Playlists {
         p := &SpotifyPlaylist{
-            Name:        sp.Name,
-            URI:         sp.URI,
+            Name: sp.Name,
+            URI: sp.URI,
             Total_Tracks: sp.Tracks.Total,
         }
 
@@ -123,40 +130,76 @@ func ConvertPlaylistsToSpotifyPlaylists(client *spotify.Client, ctx context.Cont
 
 // get tracks from playlist
 func getPlaylistTracks(client *spotify.Client, ctx context.Context, p *SpotifyPlaylist) (string, error) {
+    var alltracks []SimplifiedTrack
     playlistID := extractPlaylistID(p.URI)
 
-    // fetch the playlist items using the playlist ID
-    tracks, err := client.GetPlaylistItems(ctx, spotify.ID(playlistID))
-    if err != nil {
-        fmt.Println("Error getting tracks for playlist:", err)
-        return "", err
-    }
+    limit := 100
+    offset := 0
 
-    // remove unwanted fields from track (i.e. locales)
-    stracks := make([]SimplifiedTrack, len(tracks.Items))
-    for i, item := range tracks.Items {
-        if item.Track.Track == nil {
-            continue
+    // iterate through playlist pages (required for playlists with length > limit)
+    for {
+        // fetch the playlist items using the playlist ID
+        tracks, err := client.GetPlaylistItems(ctx, spotify.ID(playlistID), spotify.Limit(limit), spotify.Offset(offset))
+        if err != nil {
+            fmt.Println("Error getting tracks for playlist:", err)
+            return "", err
         }
-        it := item.Track.Track
-        stracks[i] = SimplifiedTrack{
-            ID: it.ID,
-            URI: it.URI,
-            Name: it.Name,
-            Artists: it.Artists,
-            Album: it.Album,
-            TrackNumber: it.TrackNumber,
-            Duration: it.Duration,
-            Popularity: it.Popularity,
-            AddedBy: item.AddedBy,
-            AddedAt: item.AddedAt,
-            Explicit: it.Explicit,
+
+        // remove unwanted fields from track (i.e. locales)
+        for _, item := range tracks.Items {
+            if item.Track.Track == nil {
+                continue
+            }
+            it := item.Track.Track
+
+            // extract simplified artist info
+            var artists []SimplifiedArtist
+            for _, artist := range it.Artists {
+                a := SimplifiedArtist {
+                    ID: artist.ID,
+                    URI: artist.URI,
+                    Name: artist.Name,
+                }
+                artists = append(artists, a)
+            }
+
+            // extract simplified album info
+            album := SimplifiedAlbum {
+                ID: it.Album.ID,
+                URI: it.Album.URI,
+                Name: it.Album.Name,
+                ReleaseDate: it.Album.ReleaseDate,
+                AlbumGroup: it.Album.AlbumGroup,
+            }
+
+            // store simplified track information
+            simplifiedtrack := SimplifiedTrack{
+                ID: it.ID,
+                URI: it.URI,
+                Name: it.Name,
+                Artists: artists,
+                Album: album,
+                TrackNumber: it.TrackNumber,
+                Duration: it.Duration,
+                Popularity: it.Popularity,
+                Explicit: it.Explicit,
+                AddedBy: item.AddedBy,
+                AddedAt: item.AddedAt,
+            }
+
+            alltracks = append(alltracks, simplifiedtrack)
         }
+
+        if len(tracks.Items) < limit {
+            break;
+        }
+
+        offset += limit
     }
+    fmt.Printf("Number of tracks in %s: %d\n", playlistID, len(alltracks))
 
     // encode the tracks as JSON
-    // TODO: drop unwanted track fields here
-    t, err := json.Marshal(stracks)
+    t, err := json.Marshal(alltracks)
     if err != nil {
         fmt.Println("JSON encoding failed:", err)
         return "", err

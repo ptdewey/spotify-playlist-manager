@@ -1,3 +1,4 @@
 # environment variables
 *.env
 env.sh
+output/*

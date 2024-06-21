@@ -13,8 +13,6 @@ import (
     "github.com/zmb3/spotify/v2"
 )
 
-
-
 const redirectURI = "http://localhost:8080/callback"
 
 var (
@@ -24,7 +22,6 @@ var (
     ch = make(chan *spotify.Client)
     state = "abc123"
 )
-
 
 func main() {
     // initialize http server
@@ -68,10 +65,8 @@ func main() {
     }
 
     // write playlist data to json
-    playlist.WritePlaylistsToFile(playlists, "user_playlists.json")
+    playlist.WritePlaylistsToFile(playlists, "output/user_playlists.json")
 }
-
-
 
 // auth token generation and checking
 func completeAuth(w http.ResponseWriter, r *http.Request) {
@@ -92,5 +87,4 @@ func completeAuth(w http.ResponseWriter, r *http.Request) {
     fmt.Println(w, "Login Completed!")
     ch <- client
 }
-
 
