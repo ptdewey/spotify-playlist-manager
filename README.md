@@ -1,11 +1,11 @@
 # Spotify Playlist Manager
 
-A Go and HTMX (TODO) tool enabling better management of Spotify playlists.
+A Go tool enabling better management of Spotify playlists.
 
 ## Motivation
 
 With UI and interactivity changes that Spotify has made to their client apps over the last couple of years, I felt the need to implement a better way of managing my playlists by using their API.
-In particular, the change from the 'like song button' to the 'add to playlist button' severly disrupted my way of using the app, and I wanted to make a system that would allow me to regain that functionality plus some new features.
+In particular, the change from the 'like song button' to the 'add to playlist button' severely disrupted my way of using the app, and I wanted to make a system that would allow me to regain that functionality plus some new features.
 
 ## Features
 
